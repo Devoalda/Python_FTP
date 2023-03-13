@@ -33,9 +33,17 @@ def handle_upload(conn, args):
     filesize = int(args[2])
     os.chdir(os.path.abspath(SERVER_FILE))
     print(f'Uploading {filename} ({filesize} bytes)')
-    with open(filename, 'wb') as f:
-        data = conn.recv(4096)
-        f.write(data)
+
+    bytes_received = 0
+    print("\nReceiving...")
+    with open(os.path.join(os.getcwd(), filename), 'wb') as f:
+        while bytes_received < filesize:
+            data = conn.recv(BUFFER_SIZE)
+            if not data:
+                break
+            f.write(data)
+            bytes_received += BUFFER_SIZE
+
     os.chdir("../")
     conn.sendall(b'Upload done')
 
@@ -45,11 +53,15 @@ def handle_download(conn, args):
     os.chdir(os.path.abspath(SERVER_FILE))
     filesize = os.path.getsize(filename)
     #conn.send(struct.pack('i', filesize))
+    conn.sendall(str(filesize).encode('utf-8'))
+    bytes_sent = 0
+    print("\nSending...")
     with open(filename, 'rb') as f:
-        data = f.read(4096)
-        while data:
+        while bytes_sent < filesize:
+            data = f.read(BUFFER_SIZE)
             conn.sendall(data)
-            data = f.read(4096)
+            bytes_sent += BUFFER_SIZE
+
     os.chdir("../")
     conn.sendall(b'Download done')
 

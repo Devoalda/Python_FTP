@@ -1,7 +1,7 @@
 import os
 import socket
 CLIENT_FILE = "clientfile"
-
+BUFFER_SIZE = 1024
 
 # This prints 1 line at first, then the whole list after running the command again
 def handle_list(conn, args):
@@ -20,7 +20,7 @@ def handle_quit(conn, args):
     conn.sendall("QUIT\r\n".encode())
     # Receive response from server
     # Decode bytes to string
-    response = conn.recv(1024).decode('utf-8').strip()
+    response = conn.recv(BUFFER_SIZE).decode('utf-8').strip()
     print(response)
     conn.close()
     return True
@@ -31,10 +31,14 @@ def handle_DWLD(conn, args):
     filename = args
     conn.sendall(f"DWLD {filename}\r".encode())
     os.chdir(os.path.abspath(CLIENT_FILE))
-    filedata = conn.recv(1024)
-    print(filedata)
+    filesize = int(conn.recv(BUFFER_SIZE).decode('utf-8'))
+    bytes_received = 0
+
     with open(filename, "wb") as f:
-        f.write(filedata)
+        while bytes_received < filesize:
+            data = conn.recv(BUFFER_SIZE)
+            f.write(data)
+            bytes_received += BUFFER_SIZE
     os.chdir("../")
     print("File downloaded successfully")
 
@@ -43,7 +47,7 @@ def handle_DWLD(conn, args):
 #    filename = args
 #    conn.sendall(f"DWLD {filename}\r".encode())
 
-#    filedata = conn.recv(1024)
+#    filedata = conn.recv(BUFFER_SIZE)
 #    print(filedata)
 #    with open(filename, "wb") as f:
 #       f.write(filedata)
@@ -55,12 +59,16 @@ def handle_UPLD(conn, args):
     if not os.path.exists(filename):
         print("File does not exist")
     else:
+        bytes_sent = 0
+        file_size = os.path.getsize(filename)
+        conn.sendall(f"UPLD {filename} {file_size}\r".encode())
+
         with open(filename, "rb") as f:
-            filedata = f.read(4096)
-            file_size = os.path.getsize(filename)
-            conn.sendall(f"UPLD {filename} {file_size}\r".encode())
-            conn.sendall(filedata)
-        response = conn.recv(4096).decode().strip()
+            while bytes_sent < file_size:
+                filedata = f.read(BUFFER_SIZE)
+                conn.sendall(filedata)
+                bytes_sent += BUFFER_SIZE
+        response = conn.recv(BUFFER_SIZE).decode().strip()
         print(response)
     os.chdir("../")
 
@@ -81,7 +89,7 @@ def ftp_cient(host, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((host, port))
 
-    response = sock.recv(1024).decode().strip()
+    response = sock.recv(BUFFER_SIZE).decode().strip()
     print(response)
 
     while True:
