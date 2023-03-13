@@ -1,16 +1,18 @@
 import os
 import socket
+CLIENT_FILE = "clientfile"
+
 
 # This prints 1 line at first, then the whole list after running the command again
 def handle_list(conn, args):
     # Show list of files received from server in response to LIST command
     # Response is a multi-line string
-    response = conn.recv(1024).decode('latin-1').strip()
-    print(response)
+    response = conn.recv(4096).decode('latin-1').strip()
 
+    print(response)
     # Check for multi-line response
     while response.startswith("1"):
-        response = conn.recv(1024).decode("latin-1")
+        response = conn.recv(4096).decode("latin-1")
         print(response)
 
 
@@ -24,18 +26,32 @@ def handle_quit(conn, args):
     return True
 
 
-def handle_dwld(conn, args):
+def handle_DWLD(conn, args):
+    # send command over
     filename = args
     conn.sendall(f"DWLD {filename}\r".encode())
-
+    os.chdir(os.path.abspath(CLIENT_FILE))
     filedata = conn.recv(1024)
     print(filedata)
     with open(filename, "wb") as f:
         f.write(filedata)
+    os.chdir("../")
     print("File downloaded successfully")
+
+
+# def handle_dwld(conn, args):
+#    filename = args
+#    conn.sendall(f"DWLD {filename}\r".encode())
+
+#    filedata = conn.recv(1024)
+#    print(filedata)
+#    with open(filename, "wb") as f:
+#       f.write(filedata)
+#    print("File downloaded successfully")
 
 def handle_UPLD(conn, args):
     filename = args
+    os.chdir(os.path.abspath(CLIENT_FILE))
     if not os.path.exists(filename):
         print("File does not exist")
     else:
@@ -44,8 +60,9 @@ def handle_UPLD(conn, args):
             file_size = os.path.getsize(filename)
             conn.sendall(f"UPLD {filename} {file_size}\r".encode())
             conn.sendall(filedata)
-        response = conn.recv(1024).decode().strip()
+        response = conn.recv(4096).decode().strip()
         print(response)
+    os.chdir("../")
 
 def user_input():
     # Get user input
@@ -82,7 +99,7 @@ def ftp_cient(host, port):
             handle_quit(sock, args)
             break
         elif command.upper() == "DWLD":
-            handle_dwld(sock, args)
+            handle_DWLD(sock, args)
         elif command.upper() == "UPLD":
             handle_UPLD(sock, args)
         elif command.upper() == "DELF":
