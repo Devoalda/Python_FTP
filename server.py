@@ -35,20 +35,44 @@ def handle_upload(conn, args):
     filename = args[1]
     filesize = int(args[2])
     os.chdir(os.path.abspath(SERVER_FILE))
-    print(f'Uploading {filename} ({filesize} bytes)')
-
-    bytes_received = 0
-    print("\nReceiving...")
-    with open(os.path.join(os.getcwd(), filename), 'wb') as f:
-        while bytes_received < filesize:
-            data = conn.recv(BUFFER_SIZE)
-            if not data:
-                break
-            f.write(data)
-            bytes_received += BUFFER_SIZE
-    print("Upload successful")
-    os.chdir("../")
-    conn.sendall(b'Upload done')
+    if os.path.exists(filename):
+        conn.sendall(b'T')
+        conn.sendall(b'File already exists! Overwrite? Y/N')
+        # get response Y/N
+        response = conn.recv(BUFFER_SIZE).decode('utf-8')
+        if response.upper() == 'Y':
+            print(f'Uploading {filename} ({filesize} bytes)')
+            bytes_received = 0
+            print("\nReceiving...")
+            with open(os.path.join(os.getcwd(), filename), 'wb') as f:
+                while bytes_received < filesize:
+                    data = conn.recv(BUFFER_SIZE)
+                    if not data:
+                        break
+                    f.write(data)
+                    bytes_received += BUFFER_SIZE
+            print("Upload successful")
+            os.chdir("../")
+            conn.sendall(b'Upload done')
+        elif response.upper() == 'N':
+            os.chdir("../")
+            conn.sendall(b'Upload cancelled!')
+    else:
+        conn.sendall(b'F')
+        conn.sendall(b'File does not already exist, Uploading')
+        print(f'Uploading {filename} ({filesize} bytes)')
+        bytes_received = 0
+        print("\nReceiving...")
+        with open(os.path.join(os.getcwd(), filename), 'wb') as f:
+            while bytes_received < filesize:
+                data = conn.recv(BUFFER_SIZE)
+                if not data:
+                    break
+                f.write(data)
+                bytes_received += BUFFER_SIZE
+        print("Upload successful")
+        os.chdir("../")
+        conn.sendall(b'Upload done')
 
 
 def handle_download(conn, args):

@@ -50,15 +50,42 @@ def handle_UPLD(conn, args):
         bytes_sent = 0
         file_size = os.path.getsize(filename)
         conn.sendall(f"UPLD {filename} {file_size}\r".encode())
+        #does file exist at the server?
+        serverExist = conn.recv(BUFFER_SIZE).decode('utf-8')
+        #if server already has the file
+        if serverExist == 'T':
+            #do you want to overwrite?
+            print(conn.recv(BUFFER_SIZE).decode('utf-8'))
+            overwrite = input()
+            conn.sendall(overwrite.encode('utf-8'))
+            #yes, overwrite
+            if overwrite.upper() == 'Y':
+                with open(filename, "rb") as f:
+                    while bytes_sent < file_size:
+                        filedata = f.read(BUFFER_SIZE)
+                        conn.sendall(filedata)
+                        bytes_sent += BUFFER_SIZE
+                response = conn.recv(BUFFER_SIZE).decode().strip()
+                print(response)
+                os.chdir("../")
+            #no, dont overwrite
+            elif overwrite.upper() == 'N':
+                response = conn.recv(BUFFER_SIZE).decode().strip()
+                print(response)
+                os.chdir("../")
+        #server doesnt have the file
+        elif serverExist == 'F':
+            print(conn.recv(BUFFER_SIZE).decode('utf-8'))
+            with open(filename, "rb") as f:
+                while bytes_sent < file_size:
+                    filedata = f.read(BUFFER_SIZE)
+                    conn.sendall(filedata)
+                    bytes_sent += BUFFER_SIZE
+            response = conn.recv(BUFFER_SIZE).decode().strip()
+            print(response)
+            os.chdir("../")
 
-        with open(filename, "rb") as f:
-            while bytes_sent < file_size:
-                filedata = f.read(BUFFER_SIZE)
-                conn.sendall(filedata)
-                bytes_sent += BUFFER_SIZE
-        response = conn.recv(BUFFER_SIZE).decode().strip()
-        print(response)
-    os.chdir("../")
+
 
 def user_input():
     # Get user input
