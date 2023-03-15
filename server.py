@@ -14,6 +14,9 @@ def handle_list(conn, args):
     #home_directory = os.path.expanduser('~')
     os.chdir(os.path.abspath(SERVER_FILE))
     files = os.listdir(os.getcwd())
+    #send number of files over
+    conn.sendall(str(len(files)).encode('utf-8'))
+
     for file in files:
         file_info = os.stat(file)
         file_mode = oct(file_info.st_mode)[-3:]
@@ -43,7 +46,7 @@ def handle_upload(conn, args):
                 break
             f.write(data)
             bytes_received += BUFFER_SIZE
-
+    print("Upload successful")
     os.chdir("../")
     conn.sendall(b'Upload done')
 
@@ -52,7 +55,6 @@ def handle_download(conn, args):
     filename = args[1]
     os.chdir(os.path.abspath(SERVER_FILE))
     filesize = os.path.getsize(filename)
-    #conn.send(struct.pack('i', filesize))
     conn.sendall(str(filesize).encode('utf-8'))
     bytes_sent = 0
     print("\nSending...")
@@ -61,13 +63,14 @@ def handle_download(conn, args):
             data = f.read(BUFFER_SIZE)
             conn.sendall(data)
             bytes_sent += BUFFER_SIZE
-
+    print("Download sent")
     os.chdir("../")
     conn.sendall(b'Download done')
 
 
 def handle_delete(conn, args):
     filename = args[1]
+    os.chdir(os.path.abspath(SERVER_FILE))
     os.remove(filename)
     conn.sendall(b'Delete done')
 

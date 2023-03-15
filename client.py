@@ -3,18 +3,17 @@ import socket
 CLIENT_FILE = "clientfile"
 BUFFER_SIZE = 1024
 
-# This prints 1 line at first, then the whole list after running the command again
+
 def handle_list(conn, args):
-    # Show list of files received from server in response to LIST command
-    # Response is a multi-line string
-    response = conn.recv(4096).decode('latin-1').strip()
-
+    num_of_files_received = 0
+    num_of_files = int(conn.recv(BUFFER_SIZE).decode('utf-8'))
+    print("Total files in directory: "+ str(num_of_files))
+    while num_of_files_received < num_of_files:
+        file_info = conn.recv(BUFFER_SIZE).decode('utf-8')
+        print(file_info)
+        num_of_files_received += 1
+    response = conn.recv(BUFFER_SIZE).decode('utf-8')
     print(response)
-    # Check for multi-line response
-    while response.startswith("1"):
-        response = conn.recv(4096).decode("latin-1")
-        print(response)
-
 
 def handle_quit(conn, args):
     conn.sendall("QUIT\r\n".encode())
@@ -24,7 +23,6 @@ def handle_quit(conn, args):
     print(response)
     conn.close()
     return True
-
 
 def handle_DWLD(conn, args):
     # send command over
@@ -39,19 +37,9 @@ def handle_DWLD(conn, args):
             data = conn.recv(BUFFER_SIZE)
             f.write(data)
             bytes_received += BUFFER_SIZE
+    response = conn.recv(BUFFER_SIZE).decode('utf-8')
+    print(response)
     os.chdir("../")
-    print("File downloaded successfully")
-
-
-# def handle_dwld(conn, args):
-#    filename = args
-#    conn.sendall(f"DWLD {filename}\r".encode())
-
-#    filedata = conn.recv(BUFFER_SIZE)
-#    print(filedata)
-#    with open(filename, "wb") as f:
-#       f.write(filedata)
-#    print("File downloaded successfully")
 
 def handle_UPLD(conn, args):
     filename = args
@@ -113,6 +101,8 @@ def ftp_cient(host, port):
         elif command.upper() == "DELF":
             filename = args
             sock.sendall(f"DELF {filename}\r".encode())
+            response = sock.recv(BUFFER_SIZE).decode('utf-8')
+            print(response)
         elif command.upper() == "RNTO":
             oldName, newName = args.split(" ", 1)
             sock.sendall(f"RNTO {oldName} {newName}\r".encode())
