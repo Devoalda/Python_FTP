@@ -85,7 +85,10 @@ def handle_UPLD(conn, args):
             print(response)
             os.chdir("../")
 
-
+def handle_HELP(conn, args):
+    conn.sendall(f"HELP\r".encode())
+    response = conn.recv(BUFFER_SIZE).decode('utf-8')
+    print(response)
 
 def user_input():
     # Get user input
@@ -133,6 +136,8 @@ def ftp_cient(host, port):
         elif command.upper() == "RNTO":
             oldName, newName = args.split(" ", 1)
             sock.sendall(f"RNTO {oldName} {newName}\r".encode())
+        if command.upper() == "HELP":
+            handle_HELP(sock, args)
         else:
             print("Invalid command")
 
