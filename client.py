@@ -136,7 +136,7 @@ def ftp_cient(host, port):
         elif command.upper() == "RNTO":
             oldName, newName = args.split(" ", 1)
             sock.sendall(f"RNTO {oldName} {newName}\r".encode())
-        if command.upper() == "HELP":
+        elif command.upper() == "HELP":
             handle_HELP(sock, args)
         else:
             print("Invalid command")
