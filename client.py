@@ -1,19 +1,34 @@
 import os
-import socket
+from socket import *
+import configparser
+import ssl
+import sys
+
 CLIENT_FILE = "clientfile"
 BUFFER_SIZE = 1024
 
 
+# TODO: Buggy after some time, Not everything is transmitted
 def handle_list(conn, args):
+    # send command over
+    conn.sendall("LIST\r\n".encode())
+
     num_of_files_received = 0
-    num_of_files = int(conn.recv(BUFFER_SIZE).decode('utf-8'))
-    print("Total files in directory: "+ str(num_of_files))
+    num_of_files = 0
+    # Receive response from server
+    # Decode bytes to string
+    response = conn.recv(BUFFER_SIZE).decode('utf-8').strip()
+    try:
+        num_of_files = int(response)
+    except ValueError:
+        print(response)
+        return
+
     while num_of_files_received < num_of_files:
-        file_info = conn.recv(BUFFER_SIZE).decode('utf-8')
-        print(file_info)
+        # Print response
+        print(conn.recv(BUFFER_SIZE).decode('utf-8').strip())
         num_of_files_received += 1
-    response = conn.recv(BUFFER_SIZE).decode('utf-8')
-    print(response)
+
 
 def handle_quit(conn, args):
     conn.sendall("QUIT\r\n".encode())
@@ -23,6 +38,7 @@ def handle_quit(conn, args):
     print(response)
     conn.close()
     return True
+
 
 def handle_DWLD(conn, args):
     # send command over
@@ -41,6 +57,7 @@ def handle_DWLD(conn, args):
     print(response)
     os.chdir("../")
 
+
 def handle_UPLD(conn, args):
     filename = args
     os.chdir(os.path.abspath(CLIENT_FILE))
@@ -50,15 +67,15 @@ def handle_UPLD(conn, args):
         bytes_sent = 0
         file_size = os.path.getsize(filename)
         conn.sendall(f"UPLD {filename} {file_size}\r".encode())
-        #does file exist at the server?
+        # does file exist at the server?
         serverExist = conn.recv(BUFFER_SIZE).decode('utf-8')
-        #if server already has the file
+        # if server already has the file
         if serverExist == 'T':
-            #do you want to overwrite?
+            # do you want to overwrite?
             print(conn.recv(BUFFER_SIZE).decode('utf-8'))
             overwrite = input()
             conn.sendall(overwrite.encode('utf-8'))
-            #yes, overwrite
+            # yes, overwrite
             if overwrite.upper() == 'Y':
                 with open(filename, "rb") as f:
                     while bytes_sent < file_size:
@@ -68,12 +85,12 @@ def handle_UPLD(conn, args):
                 response = conn.recv(BUFFER_SIZE).decode().strip()
                 print(response)
                 os.chdir("../")
-            #no, dont overwrite
+            # no, dont overwrite
             elif overwrite.upper() == 'N':
                 response = conn.recv(BUFFER_SIZE).decode().strip()
                 print(response)
                 os.chdir("../")
-        #server doesnt have the file
+        # server doesnt have the file
         elif serverExist == 'F':
             print(conn.recv(BUFFER_SIZE).decode('utf-8'))
             with open(filename, "rb") as f:
@@ -85,10 +102,12 @@ def handle_UPLD(conn, args):
             print(response)
             os.chdir("../")
 
+
 def handle_HELP(conn, args):
     conn.sendall(f"HELP\r".encode())
     response = conn.recv(BUFFER_SIZE).decode('utf-8')
     print(response)
+
 
 def user_input():
     # Get user input
@@ -103,8 +122,12 @@ def user_input():
     return command, args
 
 
-def ftp_cient(host, port):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def ftp_client(host, port, cert):
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.load_verify_locations(cert)
+    context.check_hostname = False
+
+    sock = context.wrap_socket(socket(AF_INET, SOCK_STREAM), server_hostname=host)
     sock.connect((host, port))
 
     response = sock.recv(BUFFER_SIZE).decode().strip()
@@ -119,7 +142,7 @@ def ftp_cient(host, port):
             command, args = user_input, ""
 
         if command.upper() == "LIST":
-            sock.sendall("LIST\r\n".encode())
+            # sock.sendall("LIST\r\n".encode())
             handle_list(sock, args)
         elif command.upper() == "QUIT":
             handle_quit(sock, args)
@@ -146,4 +169,17 @@ def ftp_cient(host, port):
 
 if __name__ == "__main__":
     # FTP Client should be able to define IP and port
-    ftp_cient("127.0.0.1", 2001)
+    config = configparser.ConfigParser()
+    config.read('./config/config.ini')
+    ip = config['FTPSERVER']['ip']
+    port = int(config['FTPSERVER']['port'])
+    cert = config['SSL']['cert']
+
+    try:
+        ftp_client(ip, port, cert)
+    except KeyboardInterrupt:
+        print("Client interrupted")
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)

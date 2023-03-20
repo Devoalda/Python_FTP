@@ -5,17 +5,19 @@ import sys
 import threading
 import struct
 import time
+import configparser
 
 BUFFER_SIZE = 1024
 SERVER_FILE = "serverfile"
 
+# TODO: Buggy after some time, Not everything is transmitted
 def handle_list(conn, args):
     #conn.send(b'150 Opening ASCII mode data connection for file list.\n')
     #home_directory = os.path.expanduser('~')
     os.chdir(os.path.abspath(SERVER_FILE))
     files = os.listdir(os.getcwd())
     #send number of files over
-    conn.sendall(str(len(files)).encode('utf-8'))
+    conn.sendall(str(len(files)).encode('utf-8') +b'\r\n')
 
     for file in files:
         file_info = os.stat(file)
@@ -29,7 +31,6 @@ def handle_list(conn, args):
     if not files:
         conn.sendall(b'226 No files in directory.\n')
     os.chdir("../")
-    conn.sendall(b'226 Transfer complete.\n')
 
 def handle_upload(conn, args):
     filename = args[1]
@@ -161,22 +162,28 @@ def handle_connection(conn):
     conn.sendall(b'220 Welcome to the FTP server.\n')
 
     while True:
-
-        data = conn.recv(BUFFER_SIZE).decode()
-        print(f'Server received: {data}')
-        if not data:
-            break
-        args = data.split()
-        command = args[0]
-        print(f'Command: {command}')
-        if command in commands:
-            if commands == handle_quit:
-                conn.sendall(b'Closing Connection')
-                conn.close()
+        try:
+            data = conn.recv(BUFFER_SIZE).decode()
+            print(f'Server received: {data}')
+            if not data:
                 break
-            commands[command](conn, args)
-        else:
-            conn.sendall(b'Invalid command.\n')
+            args = data.split()
+            command = args[0]
+            print(f'Command: {command}')
+            if command in commands:
+                if commands == handle_quit:
+                    conn.sendall(b'Closing Connection')
+                    conn.close()
+                    break
+                commands[command](conn, args)
+            else:
+                conn.sendall(b'Invalid command.\n')
+        except ConnectionResetError:
+            print('Connection closed by client')
+            break
+        except OSError as e:
+            print(e)
+            break
 
         # For FTP client testing
         #handle_pwd(conn, [])
@@ -192,12 +199,23 @@ def main():
     #    print("Usage: python3 server.py <port>")
     #    return
 
-    #context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    #context.load_cert_chain("certificate.pem", "privatekey.pem")
+    config = configparser.ConfigParser()
+    config.read('./config/config.ini')
 
-    port = 2001
-    #server = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_side=True)
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # TODO: Need to allow user to define port through command line as well
+    port = int(config['FTPSERVER']['port'])
+    cert = config['SSL']['cert']
+    key = config['SSL']['key']
+
+    # print(cert, key)
+
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    # context.load_cert_chain("./SSL/certificate.pem", "./SSL/privatekey.pem")
+    context.load_cert_chain(cert,key)
+
+    #port = 2001
+    server = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_side=True)
+    # server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(('', port))
     server.listen(1)
     print("Listening on port", port)
