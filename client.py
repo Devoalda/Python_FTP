@@ -128,7 +128,12 @@ def ftp_client(host, port, cert):
     context.check_hostname = False
 
     sock = context.wrap_socket(socket(AF_INET, SOCK_STREAM), server_hostname=host)
-    sock.connect((host, port))
+    try:
+        sock.connect((host, port))
+        print("Connected to " + host + ":" + str(port))
+    except ConnectionRefusedError:
+        print("Connection refused by " + host + ":" + str(port))
+        return
 
     response = sock.recv(BUFFER_SIZE).decode().strip()
     print(response)
@@ -168,18 +173,28 @@ def ftp_client(host, port, cert):
 
 
 if __name__ == "__main__":
-    # FTP Client should be able to define IP and port
+    # Get command line arguments
+    try:
+        ip = sys.argv[1]
+        port = int(sys.argv[2])
+    except IndexError:
+        pass
+
+    # Config file
     config = configparser.ConfigParser()
     config.read('./config/config.ini')
-    ip = config['FTPSERVER']['ip']
-    port = int(config['FTPSERVER']['port'])
     cert = config['SSL']['cert']
+
+    # If no command line arguments, use config file
+    if len(sys.argv) == 1:
+        print("Using Config.ini")
+        # FTP Client should be able to define IP and port
+        ip = config['FTPSERVER']['ip']
+        port = int(config['FTPSERVER']['port'])
+
 
     try:
         ftp_client(ip, port, cert)
     except KeyboardInterrupt:
         print("Client interrupted")
-        try:
-            sys.exit(0)
-        except SystemExit:
-            os._exit(0)
+        sys.exit(0)

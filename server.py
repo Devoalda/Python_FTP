@@ -171,7 +171,7 @@ def handle_connection(conn):
             command = args[0]
             print(f'Command: {command}')
             if command in commands:
-                if commands == handle_quit:
+                if command == 'QUIT':
                     conn.sendall(b'Closing Connection')
                     conn.close()
                     break
@@ -182,7 +182,7 @@ def handle_connection(conn):
             print('Connection closed by client')
             break
         except OSError as e:
-            print(e)
+            print("OS Error: {0}".format(e))
             break
 
         # For FTP client testing
@@ -194,18 +194,22 @@ def handle_connection(conn):
 
 
 def main():
-    # FTP Server should be run with a port number as an argument
-    # if len(sys.argv) != 2:
-    #    print("Usage: python3 server.py <port>")
-    #    return
+    # Get command line arguments
+    try:
+        port = int(sys.argv[1])
+    except IndexError:
+        pass
 
     config = configparser.ConfigParser()
     config.read('./config/config.ini')
 
-    # TODO: Need to allow user to define port through command line as well
-    port = int(config['FTPSERVER']['port'])
+    # SSL certificate and key
     cert = config['SSL']['cert']
     key = config['SSL']['key']
+
+    # If port is not specified, use default port
+    if len(sys.argv) < 2:
+        port = int(config['FTPSERVER']['port'])
 
     # print(cert, key)
 
