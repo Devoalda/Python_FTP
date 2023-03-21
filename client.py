@@ -45,18 +45,21 @@ def handle_DWLD(conn, args):
     filename = args
     conn.sendall(f"DWLD {filename}\r".encode())
     os.chdir(os.path.abspath(CLIENT_FILE))
-    filesize = int(conn.recv(BUFFER_SIZE).decode('utf-8'))
-    bytes_received = 0
-
-    with open(filename, "wb") as f:
-        while bytes_received < filesize:
-            data = conn.recv(BUFFER_SIZE)
-            f.write(data)
-            bytes_received += BUFFER_SIZE
     response = conn.recv(BUFFER_SIZE).decode('utf-8')
-    print(response)
-    os.chdir("../")
-
+    if response.startswith("SIZE"):
+        filesize = response[1]
+        bytes_received = 0
+        with open(filename, "wb") as f:
+            while bytes_received < filesize:
+                data = conn.recv(BUFFER_SIZE)
+                f.write(data)
+                bytes_received += BUFFER_SIZE
+        response = conn.recv(BUFFER_SIZE).decode('utf-8')
+        print(response)
+        os.chdir("../")
+    else:
+        print(response)
+        os.chdir("../")
 
 def handle_UPLD(conn, args):
     filename = args
@@ -106,7 +109,7 @@ def handle_UPLD(conn, args):
 def handle_HELP(conn, args):
     conn.sendall(f"HELP\r".encode())
     response = conn.recv(BUFFER_SIZE).decode('utf-8')
-    print(response)
+    print(response.join())
 
 
 def user_input():

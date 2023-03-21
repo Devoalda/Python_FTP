@@ -54,13 +54,13 @@ def handle_upload(conn, args):
                     bytes_received += BUFFER_SIZE
             print("Upload successful")
             os.chdir("../")
-            conn.sendall(b'Upload done')
+            conn.sendall(b'200 Upload done')
         elif response.upper() == 'N':
             os.chdir("../")
             conn.sendall(b'Upload cancelled!')
     else:
         conn.sendall(b'F')
-        conn.sendall(b'File does not already exist, Uploading')
+        conn.sendall(b'150 File does not already exist, Uploading')
         print(f'Uploading {filename} ({filesize} bytes)')
         bytes_received = 0
         print("\nReceiving...")
@@ -73,41 +73,49 @@ def handle_upload(conn, args):
                 bytes_received += BUFFER_SIZE
         print("Upload successful")
         os.chdir("../")
-        conn.sendall(b'Upload done')
+        conn.sendall(b'200 Upload done')
 
 
 def handle_download(conn, args):
     filename = args[1]
     os.chdir(os.path.abspath(SERVER_FILE))
-    filesize = os.path.getsize(filename)
-    conn.sendall(str(filesize).encode('utf-8'))
-    bytes_sent = 0
-    print("\nSending...")
-    with open(filename, 'rb') as f:
-        while bytes_sent < filesize:
-            data = f.read(BUFFER_SIZE)
-            conn.sendall(data)
-            bytes_sent += BUFFER_SIZE
-    print("Download sent")
-    os.chdir("../")
-    conn.sendall(b'Download done')
+    if os.path.exists(filename):
+        filesize = os.path.getsize(filename)
+        conn.sendall(str(f"SIZE {filesize}").encode('utf-8'))
+        bytes_sent = 0
+        print("\nSending...")
+        with open(filename, 'rb') as f:
+            while bytes_sent < filesize:
+                data = f.read(BUFFER_SIZE)
+                conn.sendall(data)
+                bytes_sent += BUFFER_SIZE
+        print("Download sent")
+        os.chdir("../")
+        conn.sendall(b'200 Download done')
+    else:
+        conn.sendall(b'550 File not found.')
+        os.chdir("../")
+
 
 
 def handle_delete(conn, args):
     filename = args[1]
     os.chdir(os.path.abspath(SERVER_FILE))
     os.remove(filename)
-    conn.sendall(b'Delete done')
+    conn.sendall(b'200 Delete done')
 
 
 def handle_rename(conn, args):
     os.chdir(os.path.abspath(SERVER_FILE))
     old_filename = args[1]
     new_filename = args[2]
-    os.rename(old_filename, new_filename)
-    os.chdir("../")
-    conn.sendall(f"completed".encode('utf-8'))
-
+    if os.path.exists(old_filename):
+        os.rename(old_filename, new_filename)
+        os.chdir("../")
+        conn.sendall(f"completed".encode('utf-8'))
+    else:
+        conn.sendall(b'550 File not found.')
+        os.chdir("../")
 
 def handle_quit(conn, args):
     conn.sendall(b'Quitting')
@@ -137,7 +145,7 @@ def handle_cwd(conn, args):
         conn.sendall(b'200 OK\n')
 
 def handle_help(conn, args):
-    conn.sendall(b'\nList of executable commands:\nLIST: List files\nUPLD <file_name>:  '
+    conn.sendall(b'\n214 List of executable commands:\nLIST: List files\nUPLD <file_name>:  '
               b'Upload file\nDWLD <file_name>: Download file\nDELF <file_name>: Delete file\nRNTO <old_name> '
               b'<new_name>: Rename file\nQUIT: Exit')
 
