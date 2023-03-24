@@ -122,7 +122,7 @@ class serverThread(threading.Thread):
         fhist = time.strftime(' %b %d %H:%M ', time.gmtime(st.st_mtime))
         return d + mode + '\t1 user' + '\t group \t\t' + str(st.st_size) + '\t' + fhist + '\t' + os.path.basename(l)
 
-    def UPLD(self, cmd):
+    def STOR(self, cmd):
         # need to update for same file name and file size
         # Cant store files if not logged in
         if self.isLoggedIn:
